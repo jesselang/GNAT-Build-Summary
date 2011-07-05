@@ -1,0 +1,19 @@
+GNAT Build Summary
+Written by Jesse Lang
+
+Turns this normal looking build output:
+
+   $ gnatmake -P gnat_build_summary
+   gcc-4.4 -c -g -gnaton -fstack-check -gnat05 -O2 -I- -gnatA /home/jesse/GNAT-Build-Summary/gnat_build_summary.adb
+   gnatbind -I- -x /home/jesse/GNAT-Build-Summary/obj/gnat_build_summary.ali
+   gnatlink /home/jesse/GNAT-Build-Summary/obj/gnat_build_summary.ali -g -fstack-check -o /home/jesse/GNAT-Build-Summary/gnat_build_summary
+
+Into a cleaner output, making warnings and errors easier to see:
+
+   $ gnatmake -eS -P gnat_build_summary | ./gbs
+      [GCC]           gnat_build_summary.adb
+      [GNAT_BIND]     gnat_build_summary.ali
+      [GNAT_LINK]     gnat_build_summary.ali
+
+Obviously, such a small example isn't impressive. However, when used in developing larger projects that are rebuilt often,
+the benefits can clearly be seen.
