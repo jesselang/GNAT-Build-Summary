@@ -29,7 +29,9 @@ procedure GNAT_Build_Summary is
       Source_Index  : Natural;
       Path_Index    : Natural;
    begin -- Parse_Summary
-      if Line (Line'First .. Line'First + 2) = "gcc" then
+      if Line'Length = 0 then
+         return (ID => None); -- We can't summarize, so return a result reflecting that.
+      elsif Line (Line'First .. Line'First + 2) = "gcc" then
          Result.Command := GCC;
       else
          Command_Start := Ada.Strings.Fixed.Index (Line, Pattern => "gnat");
@@ -110,8 +112,6 @@ begin
       exit Each_Line when Ada.Text_IO.End_Of_File (Ada.Text_IO.Current_Input);
 
       Ada.Text_IO.Get_Line (File => Ada.Text_IO.Current_Input, Item => Line, Last => Last);
-
-      exit Each_Line when Last = Line'First - 1;
 
       Summary := Parse_Summary (Line => Line (Line'First .. Last) );
 
