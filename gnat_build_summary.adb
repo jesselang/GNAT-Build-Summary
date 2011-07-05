@@ -18,11 +18,8 @@ procedure GNAT_Build_Summary is
       end case;
    end record;
 
-   Parse_Error : exception;
-
    function Parse_Summary (Line : String) return Summary_Info;
    -- Parses Line, returning summary information.
-   -- Raises Parse_Error if unable to parse Line.
 
    function Parse_Summary (Line : String) return Summary_Info is
       Result : Summary_Info (ID => Operation);
@@ -74,7 +71,7 @@ procedure GNAT_Build_Summary is
             elsif Line (Command_Start .. Command_End) = "link" then
                Result.Command := GNAT_Link;
             else
-               raise Parse_Error with "unhandled GNAT command - >" & Line & '<';
+               return (ID => None); -- We can't summarize, so return a result reflecting that.
             end if;
          end if;
       end if;
