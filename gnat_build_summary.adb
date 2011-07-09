@@ -1,9 +1,47 @@
+with Ada.Characters.Latin_1;
+with Ada.Command_Line;
 with Ada.Directories;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
 procedure GNAT_Build_Summary is
+   Invalid_Option : exception;
+   Unknown_Option : exception;
+
+   type Option_Info is record
+      Help  : Boolean := False;
+      Quiet : Boolean := False;
+   end record;
+
+   procedure Parse_Options (Options : out Option_Info);
+   -- Parses command line options into Options.
+   -- Raises Invalid_Option if an argument is malformed.
+   -- Raises Unknown_Option if the option is not recognized.
+
+   procedure Parse_Options (Options : out Option_Info) is
+   begin -- Parse_Options
+      Each_Argument : for Index in 1 .. Ada.Command_Line.Argument_Count loop
+         Parse_Argument : declare
+            Argument : constant String := Ada.Command_Line.Argument (Index);
+         begin -- Parse_Argument
+            if Argument'Length /= 2 or else Argument (1) /= '-' then
+               raise Invalid_Option with Argument;
+            else
+               case Argument (2) is
+                  when 'h' =>
+                     Options.Help := True;
+                  when 'q' =>
+                     Options.Quiet := True;
+                  when others =>
+                     raise Unknown_Option with Argument;
+               end case;
+            end if;
+         end Parse_Argument;
+      end loop Each_Argument;
+   end Parse_Options;
+
    type Summary_ID is (None, Operation); -- The possible types of summary.
 
    type Summary_Command is (GNAT_Make, GCC, GNAT_List, GNAT_Compile, GNAT_Bind, GNAT_Link); -- Recognized commands.
@@ -104,26 +142,59 @@ procedure GNAT_Build_Summary is
       return Result;
    end Parse_Summary;
 
+   procedure Usage;
+   -- Outputs usage information to Ada.Text_IO.Current_Error.
+
+   procedure Usage is
+      use Ada.Text_IO;
+   begin -- Usage
+      Put_Line (File => Current_Error, Item => "GNAT Build Summary - http://github.com/jesselang/GNAT-Build-Summary");
+      Put_Line (File => Current_Error, Item => "Written by Jesse Lang - http://jesselang.com/");
+      Put_Line (File => Current_Error, Item => "Usage: gnat_build_summary [-q]");
+      Put_Line (File => Current_Error, Item => "Options:");
+      Put_Line (File => Current_Error, Item => Ada.Characters.Latin_1.HT & "-q   Quiet mode. Only outputs important things.");
+   end Usage;
+
+   Options : Option_Info;
    Line    : String (1 .. 16000);
    Last    : Natural;
    Summary : Summary_Info;
 begin
-   Each_Line : loop
-      exit Each_Line when Ada.Text_IO.End_Of_File (Ada.Text_IO.Current_Input);
+   Parse_Options (Options => Options);
 
-      Ada.Text_IO.Get_Line (File => Ada.Text_IO.Current_Input, Item => Line, Last => Last);
+   if Options.Help then
+      Usage;
+   else
+      Each_Line : loop
+         exit Each_Line when Ada.Text_IO.End_Of_File (Ada.Text_IO.Current_Input);
 
-      Summary := Parse_Summary (Line => Line (Line'First .. Last) );
+         Ada.Text_IO.Get_Line (File => Ada.Text_IO.Current_Input, Item => Line, Last => Last);
 
-      case Summary.ID is
-         when None =>
-            Ada.Text_IO.Put_Line (Item => Line (Line'First .. Last) );
-         when Operation =>
-            Ada.Text_IO.Put (Item => "   [" & Summary_Command'Image (Summary.Command) & "]  ");
-            Ada.Text_IO.Set_Col (To => 20);
-            Ada.Text_IO.Put_Line (Item => Ada.Directories.Simple_Name (Ada.Strings.Unbounded.To_String (Summary.File) ) );
-      end case;
-   end loop Each_Line;
+         Summary := Parse_Summary (Line => Line (Line'First .. Last) );
+
+         case Summary.ID is
+            when None =>
+               Ada.Text_IO.Put_Line (Item => Line (Line'First .. Last) );
+            when Operation =>
+               if not Options.Quiet then
+                  Ada.Text_IO.Put (Item => "   [" & Summary_Command'Image (Summary.Command) & "]  ");
+                  Ada.Text_IO.Set_Col (To => 20);
+                  Ada.Text_IO.Put_Line (Item => Ada.Directories.Simple_Name (Ada.Strings.Unbounded.To_String (Summary.File) ) );
+               end if;
+         end case;
+      end loop Each_Line;
+   end if;
+exception -- GNAT_Build_Summary
+   when E : Invalid_Option =>
+      Ada.Text_IO.Put_Line
+         (File => Ada.Text_IO.Current_Error, Item => "Invalid option: " & Ada.Exceptions.Exception_Message (E) );
+      Usage;
+      Ada.Command_Line.Set_Exit_Status (Code => Ada.Command_Line.Failure);
+   when E : Unknown_Option =>
+      Ada.Text_IO.Put_Line
+         (File => Ada.Text_IO.Current_Error, Item => "Unknown option: " & Ada.Exceptions.Exception_Message (E) );
+      Usage;
+      Ada.Command_Line.Set_Exit_Status (Code => Ada.Command_Line.Failure);
 end GNAT_Build_Summary;
 
 -- Copyright 2011 Solid Rock Data Solutions. All rights reserved.
