@@ -166,22 +166,29 @@ begin
       Usage;
    else
       Each_Line : loop
-         exit Each_Line when Ada.Text_IO.End_Of_File (Ada.Text_IO.Current_Input);
+         Robust : begin
+            exit Each_Line when Ada.Text_IO.End_Of_File (Ada.Text_IO.Current_Input);
 
-         Ada.Text_IO.Get_Line (File => Ada.Text_IO.Current_Input, Item => Line, Last => Last);
+            Ada.Text_IO.Get_Line (File => Ada.Text_IO.Current_Input, Item => Line, Last => Last);
 
-         Summary := Parse_Summary (Line => Line (Line'First .. Last) );
+            Summary := Parse_Summary (Line => Line (Line'First .. Last) );
 
-         case Summary.ID is
-            when None =>
-               Ada.Text_IO.Put_Line (Item => Line (Line'First .. Last) );
-            when Operation =>
-               if not Options.Quiet then
-                  Ada.Text_IO.Put (Item => "   [" & Summary_Command'Image (Summary.Command) & "]  ");
-                  Ada.Text_IO.Set_Col (To => 20);
-                  Ada.Text_IO.Put_Line (Item => Ada.Directories.Simple_Name (Ada.Strings.Unbounded.To_String (Summary.File) ) );
-               end if;
-         end case;
+            case Summary.ID is
+               when None =>
+                  Ada.Text_IO.Put_Line (Item => Line (Line'First .. Last) );
+               when Operation =>
+                  if not Options.Quiet then
+                     Ada.Text_IO.Put (Item => "   [" & Summary_Command'Image (Summary.Command) & "]  ");
+                     Ada.Text_IO.Set_Col (To => 20);
+                     Ada.Text_IO.Put_Line (Item => Ada.Directories.Simple_Name (Ada.Strings.Unbounded.To_String (Summary.File) ) );
+                  end if;
+            end case;
+         exception -- Robust
+            when E : others =>
+               Ada.Text_IO.Put_Line
+                  (File => Ada.Text_IO.Current_Error,
+                   Item => Ada.Exceptions.Exception_Information (E) & " on line >" & Line (Line'First .. Last) & '<');
+         end Robust;
       end loop Each_Line;
    end if;
 exception -- GNAT_Build_Summary
@@ -194,6 +201,9 @@ exception -- GNAT_Build_Summary
       Ada.Text_IO.Put_Line
          (File => Ada.Text_IO.Current_Error, Item => "Unknown option: " & Ada.Exceptions.Exception_Message (E) );
       Usage;
+      Ada.Command_Line.Set_Exit_Status (Code => Ada.Command_Line.Failure);
+   when E : others =>
+      Ada.Text_IO.Put_Line (File => Ada.Text_IO.Current_Error, Item => "Fatal: " & Ada.Exceptions.Exception_Information (E) );
       Ada.Command_Line.Set_Exit_Status (Code => Ada.Command_Line.Failure);
 end GNAT_Build_Summary;
 
